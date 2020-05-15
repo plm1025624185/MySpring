@@ -5,9 +5,8 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
-@Target({ElementType.CONSTRUCTOR, ElementType.METHOD, ElementType.PARAMETER, 
-	ElementType.FIELD, ElementType.ANNOTATION_TYPE, ElementType.TYPE})
+@Target({ElementType.FIELD})
 @Retention(RetentionPolicy.RUNTIME)
-public @interface MyComponent {
-	String value() default "";
+public @interface MyAutowired {
+
 }

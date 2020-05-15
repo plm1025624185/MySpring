@@ -1,8 +1,15 @@
 package com.plm.myspring.servlet.v1;
 
+import com.plm.myspring.annotation.MyAutowired;
+import com.plm.myspring.annotation.MyComponent;
+import com.plm.myspring.annotation.MyController;
+import com.plm.myspring.annotation.MyRequestMapping;
+
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.net.URL;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
@@ -22,7 +29,8 @@ public class MyDispatchServlet extends HttpServlet {
 	
 	private Properties contextConfig = new Properties(); // 全局配置文件
 	private List<String> classNameList = new LinkedList<>(); // 符合条件的类文件 
-	private Map<String, Object> ioc = new LinkedHashMap<>(); //
+	private Map<String, Object> ioc = new LinkedHashMap<>(); // ioc容器
+	private Map<String, Method> handlerMapping = new LinkedHashMap<>(); // 路径映射容器
 
 	@Override
 	protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
@@ -36,7 +44,7 @@ public class MyDispatchServlet extends HttpServlet {
 	}
 
 	private void doDispatcher() {
-		// TODO Auto-generated method stub
+		
 		
 	}
 
@@ -58,21 +66,105 @@ public class MyDispatchServlet extends HttpServlet {
 		doHandlerMapping();
 	}
 
+	/**
+	 * 对配置的url进行映射
+	 */
 	private void doHandlerMapping() {
-		// TODO Auto-generated method stub
-		
+		try {
+			// 对所有的控制器进行映射处理
+			for (Object controller : ioc.values()) {
+				Class<?> clazz = controller.getClass();
+				if (!clazz.isAnnotationPresent(MyController.class)) continue;
+				String baseUrl = "/";
+				// 首先判断控制器上是否有MyRequestMapping注解，有的话将值赋值给基地址
+				if (clazz.isAnnotationPresent(MyRequestMapping.class)) {
+					baseUrl = clazz.getAnnotation(MyRequestMapping.class).value();
+				}
+				// 获取所有方法，对有MyRequestMapping注解的方法进行存储
+				for (Method method : clazz.getMethods()) {
+					if (!method.isAnnotationPresent(MyRequestMapping.class)) continue;
+					String path = baseUrl + "/" + method.getAnnotation(MyRequestMapping.class).value();
+					if (handlerMapping.containsKey(path)) throw new Exception("地址路径已经存在！");
+					handlerMapping.put(path, method);
+				}
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
 	}
 
+	/**
+	 * 对所有标志了@MyAutowire的字段进行依赖注入
+	 */
 	private void doAutowired() {
-		// TODO Auto-generated method stub
-		
+		try {
+			for( Object obj : ioc.values()) {
+				// 对所有的私有属性进行判断
+				for(Field field : obj.getClass().getDeclaredFields()) {
+					if (!field.isAnnotationPresent(MyAutowired.class)) continue;
+					// 字段有可能没有getset方法，所以强制赋值
+					field.setAccessible(true);
+					field.set(obj, ioc.get(field.getType().getName()));
+				}
+			}
+		} catch (IllegalAccessException e) {
+			e.printStackTrace();
+		}
 	}
 
 	/**
 	 * 对有对应注解的类进行实例化
 	 */
 	private void doInstance() {
-		
+		try {
+			for (String str : classNameList) {
+				Class<?> clazz = Class.forName(str);
+				if (clazz.isAnnotationPresent(MyController.class)) {
+					doInstanceForMyController(clazz);
+				} else if (clazz.isAnnotationPresent(MyComponent.class)) {
+					doInstanceForMyComponent(clazz);
+				}
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+	}
+
+	/**
+	 * 对MyComponent注解进行处理
+	 * 由于实现类除了自身还有其接口类，
+	 * 也需要将这些存放到ioc容器中去存储
+	 * @param clazz
+	 */
+	private void doInstanceForMyComponent(Class<?> clazz) throws Exception {
+		// 首先先将当前类存放到ioc容器中
+		saveCommonClass(clazz);
+		// 接口类进行处理
+		for (Class<?> in : clazz.getInterfaces()) {
+			if (ioc.containsKey(in.getName())) throw new Exception("已存在该接口实例！");
+			ioc.put(in.getName(), ioc.get(clazz.getName()));
+		}
+	}
+
+	/**
+	 * 对MyContoller注解进行处理
+	 * 控制器只需要直接进行初始化就好了
+	 * @param clazz
+	 */
+	private void doInstanceForMyController(Class<?> clazz) throws Exception {
+			saveCommonClass(clazz);
+	}
+
+	/**
+	 * 使用类的全名作为ioc容器的key，实例作为ioc容器的value
+	 * @param clazz
+	 */
+	private void saveCommonClass(Class<?> clazz) throws Exception {
+		String key = clazz.getName();
+		Object value = clazz.newInstance();
+		// 判断当前key是否已经被占用，如果被占用了，就抛出异常
+		if (ioc.containsKey(key)) throw  new Exception("ioc容器实例化失败，已经存在对应的键值：" + key);
+		ioc.put(key, value);
 	}
 
 	/**
