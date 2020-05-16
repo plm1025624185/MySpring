@@ -4,12 +4,16 @@ import com.plm.myspring.annotation.MyAutowired;
 import com.plm.myspring.annotation.MyComponent;
 import com.plm.myspring.annotation.MyController;
 import com.plm.myspring.annotation.MyRequestMapping;
+import com.plm.myspring.annotation.MyRequestParam;
 
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.PrintWriter;
+import java.lang.reflect.AnnotatedType;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.lang.reflect.Parameter;
 import java.net.URL;
 import java.util.LinkedHashMap;
 import java.util.LinkedList;
@@ -40,12 +44,46 @@ public class MyDispatchServlet extends HttpServlet {
 	@Override
 	protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
 		// 第六步：委派请求
-		doDispatcher();
+		try {
+			doDispatcher(req, resp);
+		} catch (Exception e) {
+			PrintWriter write = resp.getWriter();
+			write.print("500 exception!");
+			e.printStackTrace(write);
+		}
 	}
 
-	private void doDispatcher() {
-		
-		
+	/**
+	 * 对路径进行委派
+	 * @param resp 
+	 * @param req 
+	 * @throws Exception 
+	 */
+	private void doDispatcher(HttpServletRequest req, HttpServletResponse resp) throws Exception {
+		// 获取当前的请求路径
+		String uri = req.getRequestURI();
+		String contextPath = req.getContextPath();
+		uri = uri.replace(contextPath, "");
+	
+		// 检查当前路径是否注册
+		if (!handlerMapping.containsKey(uri)) throw new Exception("当前请求路径无法处理");
+		Method method = handlerMapping.get(uri);
+		Parameter[] params = method.getParameters(); // 获取运行时的参数
+		Object[] paramObjs = new Object[params.length];
+		for (int i = 0; i < params.length; i++) {
+			Class<?> parameterType = params[i].getType();
+			if (parameterType.equals(HttpServletRequest.class)) paramObjs[i] = req;
+			else if (parameterType.equals(HttpServletResponse.class)) paramObjs[i] = resp;
+			else {
+				MyRequestParam annotation = params[i].getAnnotation(MyRequestParam.class); // 获取运行时参数上是否含有注解
+				if (annotation == null) continue;
+				String paramName = annotation.value();
+				paramObjs[i] = req.getParameter(paramName);
+			}
+		}
+		Object target = ioc.get(method.getDeclaringClass().getName());
+		Object obj = method.invoke(target, paramObjs);
+		resp.getWriter().write(obj.toString());
 	}
 
 	@Override
@@ -64,6 +102,8 @@ public class MyDispatchServlet extends HttpServlet {
 		
 		// 第五步：初始化HandlerMapping     MVC部分
 		doHandlerMapping();
+		
+		System.out.println("初始化成功");
 	}
 
 	/**
@@ -78,12 +118,13 @@ public class MyDispatchServlet extends HttpServlet {
 				String baseUrl = "/";
 				// 首先判断控制器上是否有MyRequestMapping注解，有的话将值赋值给基地址
 				if (clazz.isAnnotationPresent(MyRequestMapping.class)) {
-					baseUrl = clazz.getAnnotation(MyRequestMapping.class).value();
+					baseUrl += clazz.getAnnotation(MyRequestMapping.class).value();
 				}
 				// 获取所有方法，对有MyRequestMapping注解的方法进行存储
 				for (Method method : clazz.getMethods()) {
 					if (!method.isAnnotationPresent(MyRequestMapping.class)) continue;
 					String path = baseUrl + "/" + method.getAnnotation(MyRequestMapping.class).value();
+					path = path.replaceAll("/+", "/");
 					if (handlerMapping.containsKey(path)) throw new Exception("地址路径已经存在！");
 					handlerMapping.put(path, method);
 				}
