@@ -1,4 +1,4 @@
-package com.plm.myspring.servlet.v1;
+package com.plm.myspring.spring.framework.v1;
 
 import com.plm.myspring.annotation.MyAutowired;
 import com.plm.myspring.annotation.MyComponent;
@@ -44,7 +44,7 @@ public class MyDispatchServlet extends HttpServlet {
 	}
 
 	private void doDispatcher() {
-		
+
 		
 	}
 

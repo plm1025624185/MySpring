@@ -7,7 +7,7 @@
 	
 	<servlet>
 		<servlet-name>MySpring</servlet-name>
-		<servlet-class>com.plm.myspring.servlet.v1.MyDispatchServlet</servlet-class>
+		<servlet-class>com.plm.myspring.spring.framework.v1.MyDispatchServlet</servlet-class>
 		<init-param>
 			<param-name>contextConfigLocation</param-name>
 			<param-value>application.properties</param-value>
