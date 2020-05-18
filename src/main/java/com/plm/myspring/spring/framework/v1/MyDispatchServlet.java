@@ -53,11 +53,6 @@ public class MyDispatchServlet extends HttpServlet {
 		}
 	}
 
-<<<<<<< HEAD:src/main/java/com/plm/myspring/spring/framework/v1/MyDispatchServlet.java
-	private void doDispatcher() {
-
-		
-=======
 	/**
 	 * 对路径进行委派
 	 * @param resp 
@@ -89,7 +84,6 @@ public class MyDispatchServlet extends HttpServlet {
 		Object target = ioc.get(method.getDeclaringClass().getName());
 		Object obj = method.invoke(target, paramObjs);
 		resp.getWriter().write(obj.toString());
->>>>>>> 2daba77256e8870556d1d7b72b52c1ddffb1fc56:src/main/java/com/plm/myspring/servlet/v1/MyDispatchServlet.java
 	}
 
 	@Override
