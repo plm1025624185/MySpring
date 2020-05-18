@@ -11,6 +11,6 @@ import com.plm.myspring.service.IMessageService;
 public class MessageServiceImpl implements IMessageService {
     @Override
     public String sendMessage(String recMsg) {
-        return String.format("received the message:%s" + recMsg);
+        return String.format("I have received the message:%s", recMsg);
     }
 }
